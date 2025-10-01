@@ -1,0 +1,19 @@
+services:
+  ps:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    init: true
+    command: tail -f /dev/null
+    cap_add:
+      - NET_ADMIN
+    # networks:
+    #   pppoe_net:
+    stdin_open: true
+    tty: true
+
+networks:
+  pppoe_net:
+    driver: macvlan
+    driver_opts:
+      parent: eth0
