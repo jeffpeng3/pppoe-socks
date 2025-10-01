@@ -1,19 +1,22 @@
 services:
   ps:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/jeffpeng3/pppoe-socks:latest
     init: true
-    command: tail -f /dev/null
     cap_add:
       - NET_ADMIN
-    # networks:
-    #   pppoe_net:
+    networks:
+      pppoe_net: null
+    devices:
+      - /dev/ppp:/dev/ppp
     stdin_open: true
     tty: true
-
+    environment:
+      - PPPOE_USER=${PPPOE_USER}
+      - PPPOE_PASSWORD=${PPPOE_PASSWORD}
+    env_file:
+      - .env
 networks:
   pppoe_net:
     driver: macvlan
     driver_opts:
-      parent: eth0
+      parent: eno1

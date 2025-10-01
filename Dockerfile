@@ -1,5 +1,12 @@
-from alpine:latest
+from ubuntu
 
-run apk add --no-cache iproute2 ppp-pppoe
+run apt-get update
+run apt-get install -y pppoe pppoeconf
+run apt-get install -y nano
+run apt-get install -y curl  iputils-ping
 
-cmd ["pppoe-discovery", "-I", "eth0"]
+add init.sh /init.sh
+run chmod +x /init.sh
+
+cmd ["/init.sh"]
+# cmd ["tail", "-f", "/dev/null"]
