@@ -1,19 +1,37 @@
 services:
   ps:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/jeffpeng3/pppoe-socks:latest
     init: true
-    command: tail -f /dev/null
     cap_add:
       - NET_ADMIN
-    # networks:
-    #   pppoe_net:
+    devices:
+      - /dev/ppp:/dev/ppp
     stdin_open: true
     tty: true
+    environment:
+      - TZ=Asia/Taipei
+      - RUST_LOG=${RUST_LOG:-info}
 
+      - PPPOE_USERNAME=${PPPOE_USERNAME}
+      - PPPOE_PASSWORD=${PPPOE_PASSWORD}
+      - PPPOE_SESSION_COUNT=${PPPOE_SESSION_COUNT:-1}
+
+      - IP_ROTATION_TIME=${IP_ROTATION_TIME}
+      - IP_ROTATION_WAIT_SECONDS=${IP_ROTATION_WAIT_SECONDS}
+
+      - PROXY_VERBOSE=${PROXY_VERBOSE:-1}
+
+      - GATEWAY=${GATEWAY}
+
+    env_file:
+      - .env
+    dns:
+      - 1.1.1.1
+    networks:
+      pppoe_net: 
+        ipv4_address: 1.2.3.4
 networks:
   pppoe_net:
     driver: macvlan
     driver_opts:
-      parent: eth0
+      parent: eno1
