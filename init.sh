@@ -45,4 +45,5 @@ while ! ip addr show ppp0 | grep -q "inet "; do
   sleep 5
 done
 echo "ppp0 介面已取得 IP 位址：" $(ip addr show ppp0 | grep -o -P " ((\d+.){4}) ")
+/usr/sbin/danted -f /etc/danted/danted1.conf -p /var/run/danted1.pid -D
 wait $!
