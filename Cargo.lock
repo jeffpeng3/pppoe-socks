@@ -617,7 +617,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "pppoe-socks"
+name = "ppproxy"
 version = "0.1.0"
 dependencies = [
  "anyhow",
