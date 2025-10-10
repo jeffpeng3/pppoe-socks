@@ -130,10 +130,10 @@ async fn is_same_address(
     for i in iter {
         match i {
             netlink_packet_route::address::AddressAttribute::Address(a) => {
-                addr = Some(a.clone());
+                addr = Some(*a);
             }
             netlink_packet_route::address::AddressAttribute::Local(a) => {
-                local = Some(a.clone());
+                local = Some(*a);
             }
             _ => {}
         }
