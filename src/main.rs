@@ -1,5 +1,5 @@
 use env_logger::Builder;
-use log::{trace, error};
+use log::{trace, error, info};
 use std::env;
 use std::sync::Arc;
 use tokio::process::Command;
@@ -48,7 +48,7 @@ async fn main() {
 
     let _ = start_route().await.map_err(|x| error!("{x:?}"));
 
-    error!("Starting PPPoE SOCKS5 Proxy Service");
+    info!("Starting ppproxy Service");
 
     let pppoe_manager = PPPoEManager::new();
     PPPoEManager::start_stats_task(Arc::clone(&pppoe_manager)).await;
