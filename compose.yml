@@ -1,6 +1,6 @@
 services:
   ps:
-    image: ghcr.io/jeffpeng3/pppoe-socks:latest
+    image: ghcr.io/jeffpeng3/ppproxy:latest
     init: true
     cap_add:
       - NET_ADMIN
