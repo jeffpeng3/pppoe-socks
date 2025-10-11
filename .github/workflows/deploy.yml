@@ -31,11 +31,23 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: 擷取中繼資料
-      id: meta
+    - name: 擷取server中繼資料
+      id: server_meta
       uses: docker/metadata-action@v5
       with:
         images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: 擷取client中繼資料
+      id: client_meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-client
         tags: |
           type=ref,event=branch
           type=ref,event=pr
@@ -47,15 +59,27 @@ jobs:
       with:
         repository: "go-gost/gost"
         latest: true
-        fileName: "gost_*_linux_amd64.tar.gz"
+        fileName: "gost_*_linux_amd64v3.tar.gz"
         extract: true
 
     - name: 建置並推送 Docker 映像
-      uses: docker/build-push-action@v5
+      uses: docker/build-push-action@v6
       with:
         context: .
         push: true
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
+        tags: ${{ steps.server_meta.outputs.tags }}
+        labels: ${{ steps.server_meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    
+    - name: 建置並推送 Docker 映像
+      uses: docker/build-push-action@v6
+      with:
+        context: .
+        file: ./client/Dockerfile
+        push: true
+        tags: ${{ steps.client_meta.outputs.tags }}
+        labels: ${{ steps.client_meta.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
