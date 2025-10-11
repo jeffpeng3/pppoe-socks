@@ -1,8 +1,8 @@
 use log::{debug, error};
 use serde_json::{Value, json};
-use std::env;
 use std::process::Stdio;
 use std::sync::Arc;
+use std::{env, vec};
 use tokio::process::{Child, Command};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
@@ -44,6 +44,9 @@ fn tun_service(index: u16, interface: &str) -> Value {
       "addr": format!(":{}", 8880 + index),
       "handler": {
         "type": "tun",
+        "metadata": {
+          "bufferSize": 65535,
+        }
       },
       "bypass": "local-bypass",
       "listener": {
@@ -72,7 +75,16 @@ impl ProxyServer {
           }
         ]);
 
-        let mut services = Vec::new();
+        let mut services = vec![json!({
+          "name": "tun-relay",
+          "addr": ":8000",
+          "handler": {
+            "type": "relay"
+          },
+          "listener": {
+            "type": "tcp"
+          }
+        })];
 
         services.push(proxy_service(0, "eth0"));
         services.push(tun_service(0, "tun0"));
@@ -112,20 +124,15 @@ impl ProxyServer {
         let verbose = env::var("PROXY_VERBOSE").unwrap_or_else(|_| "false".to_string()) == "true"
             || env::var("PROXY_VERBOSE").unwrap_or_else(|_| "0".to_string()) == "1";
 
-        let stdio = if verbose {
-            Stdio::inherit
-        } else {
-            Stdio::null
-        };
-
+        let stdio = if verbose { Stdio::inherit } else { Stdio::null };
 
         let child = Command::new("./gost")
-        .arg("-C")
-        .arg(&p.config_json)
-        .stdout(stdio())
-        .stderr(stdio())
-        .spawn()
-        .expect("Failed to start proxy");
+            .arg("-C")
+            .arg(&p.config_json)
+            .stdout(stdio())
+            .stderr(stdio())
+            .spawn()
+            .expect("Failed to start proxy");
 
         p.process = Some(child);
 

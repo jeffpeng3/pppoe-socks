@@ -1,5 +1,5 @@
 use env_logger::Builder;
-use log::{trace, error, info};
+use log::{error, info, trace};
 use std::env;
 use std::sync::Arc;
 use tokio::process::Command;
@@ -10,10 +10,10 @@ mod pppoe_manager;
 mod proxy_server;
 mod route_manger;
 
-use route_manger::start_route;
 use pppoe_client::PPPoEClient;
 use pppoe_manager::PPPoEManager;
 use proxy_server::ProxyServer;
+use route_manger::start_route;
 
 #[tokio::main]
 async fn main() {
@@ -83,7 +83,9 @@ async fn main() {
     loop {
         for client in &clients {
             let c = client.lock().await;
-            if *c.connected.lock().await && let Some(stats) = c.get_traffic_stats().await {
+            if *c.connected.lock().await
+                && let Some(stats) = c.get_traffic_stats().await
+            {
                 trace!("{} {:?}", c.interface, stats);
             }
         }
