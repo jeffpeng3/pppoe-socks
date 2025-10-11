@@ -5,7 +5,9 @@ run apk add --no-cache iptables
 
 workdir /bin
 copy gost .
+workdir /app
+copy client/init.sh .
 
 env TZ=Asia/Taipei
 
-cmd ["./ppproxy"]
+cmd ["sh", "init.sh"]

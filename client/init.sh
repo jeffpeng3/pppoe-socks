@@ -62,4 +62,4 @@ log:
 
 EOF
 
-/bin/gost
+gost
