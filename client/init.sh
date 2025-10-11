@@ -8,17 +8,28 @@ if [ -z "$RELAY_PORT" ]; then
   echo "RELAY_PORT is not set"
   exit 1
 fi
-if [ -z "$TARGET_PORT" ]; then
-  echo "TARGET_PORT is not set"
-  exit 1
-fi
-if [ -z "$LOCAL_IP" ]; then
-  echo "LOCAL_IP is not set"
+if [ -z "$SERVICE_ID" ]; then
+  echo "SERVICE_ID is not set"
   exit 1
 fi
 
+rand
+
+LOCAL_IP="192.168.10$SERVICE_ID.$(shuf -i 1-254 -n 1)"
+TARGET_PORT="808$SERVICE_ID"
+
+
 GATEWAY=$(ip route show 0.0.0.0/0 | cut -d\  -f3 | head -n 1)
+
+echo "========== Client Config =========="
+echo "Server IP      : $SERVER_IP"
+echo "Relay port     : $RELAY_PORT"
+echo "Service ID     : $SERVICE_ID"
+echo "Target port    : $TARGET_PORT"
 echo "Default gateway: $GATEWAY"
+echo "Local IP       : $LOCAL_IP"
+echo "==================================="
+
 
 ip r $SERVER_IP/32 via $GATEWAY dev eth0
 ip r d default
