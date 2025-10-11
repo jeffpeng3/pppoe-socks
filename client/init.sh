@@ -16,7 +16,7 @@ fi
 rand
 
 LOCAL_IP="192.168.10$SERVICE_ID.$(shuf -i 1-254 -n 1)"
-TARGET_PORT="808$SERVICE_ID"
+TARGET_PORT="888$SERVICE_ID"
 
 
 GATEWAY=$(ip route show 0.0.0.0/0 | cut -d\  -f3 | head -n 1)
