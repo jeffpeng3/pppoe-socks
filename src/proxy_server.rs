@@ -2,7 +2,7 @@ use log::{debug, error};
 use serde_json::{Value, json};
 use std::process::Stdio;
 use std::sync::Arc;
-use std::{env, vec};
+use std::env;
 use tokio::process::{Child, Command};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
@@ -75,16 +75,7 @@ impl ProxyServer {
           }
         ]);
 
-        let mut services = vec![json!({
-          "name": "tun-relay",
-          "addr": ":8000",
-          "handler": {
-            "type": "relay"
-          },
-          "listener": {
-            "type": "tcp"
-          }
-        })];
+        let mut services = Vec::new();
 
         services.push(proxy_service(0, "eth0"));
         services.push(tun_service(0, "tun0"));
