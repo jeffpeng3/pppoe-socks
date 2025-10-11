@@ -69,8 +69,8 @@ jobs:
         push: true
         tags: ${{ steps.server_meta.outputs.tags }}
         labels: ${{ steps.server_meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        cache-from: type=gha,scope=server
+        cache-to: type=gha,mode=max,scope=server
 
     
     - name: 建置並推送 Docker 映像
@@ -81,5 +81,5 @@ jobs:
         push: true
         tags: ${{ steps.client_meta.outputs.tags }}
         labels: ${{ steps.client_meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        cache-from: type=gha,scope=client
+        cache-to: type=gha,mode=max,scope=client
