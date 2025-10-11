@@ -1,7 +1,7 @@
 from alpine:latest
 
-# run apk add --no-cache iproute2
-# run apk add --no-cache iptables
+run apk add --no-cache iproute2
+run apk add --no-cache iptables
 
 workdir /bin
 copy gost .
