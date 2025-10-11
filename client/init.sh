@@ -13,8 +13,6 @@ if [ -z "$SERVICE_ID" ]; then
   exit 1
 fi
 
-rand
-
 LOCAL_IP="192.168.10$SERVICE_ID.$(shuf -i 1-254 -n 1)"
 TARGET_PORT="888$SERVICE_ID"
 
@@ -31,10 +29,10 @@ echo "Local IP       : $LOCAL_IP"
 echo "==================================="
 
 
-ip r $SERVER_IP/32 via $GATEWAY dev eth0
+ip r a $SERVER_IP/32 via $GATEWAY dev eth0
 ip r d default
 
-cat >> gost.yml << EOF
+cat > gost.yml << EOF
 services:
   - name: tun-service
     addr: :0

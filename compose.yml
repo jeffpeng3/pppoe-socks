@@ -7,8 +7,6 @@ services:
     devices:
       - /dev/ppp:/dev/ppp
       - /dev/net/tun:/dev/net/tun
-    stdin_open: true
-    tty: true
     environment:
       - TZ=Asia/Taipei
       - RUST_LOG=${RUST_LOG:-info}
