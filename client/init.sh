@@ -53,3 +53,5 @@ log:
 EOF
 
 gost
+
+exit 1

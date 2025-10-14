@@ -1,35 +1,35 @@
-from rust as builder
+FROM rust AS builder
 
-workdir /app
-run rustup target add x86_64-unknown-linux-musl
+WORKDIR /app
+RUN rustup target add x86_64-unknown-linux-musl
 
-run cargo init ppproxy
-workdir /app/ppproxy
-copy Cargo.toml Cargo.lock ./
-run cargo build --release --target x86_64-unknown-linux-musl
+RUN cargo init ppproxy
+WORKDIR /app/ppproxy
+COPY Cargo.toml Cargo.lock ./
+RUN cargo build --release --target x86_64-unknown-linux-musl
 
-copy src ./src
-run touch -a -m ./src/main.rs
-run cargo build --release --target x86_64-unknown-linux-musl
+COPY src ./src
+RUN touch -a -m ./src/main.rs
+RUN cargo build --release --target x86_64-unknown-linux-musl
 
 
-from alpine:latest
+FROM alpine:latest
 
-run apk add --no-cache rp-pppoe
-run apk add --no-cache ppp-pppoe
-run apk add --no-cache nftables
-run apk add --no-cache tzdata
-run apk add --no-cache iproute2
-# run apk add --no-cache curl
-# run apk add curl iputils-ping
+RUN apk add --no-cache rp-pppoe
+RUN apk add --no-cache ppp-pppoe
+RUN apk add --no-cache nftables
+RUN apk add --no-cache tzdata
+RUN apk add --no-cache iproute2
+# RUN apk add --no-cache curl
+# RUN apk add curl iputils-ping
 
-workdir /app
-add rt_tables /etc/iproute2/rt_tables
-add nftables.conf /etc/nftables.conf
-copy gost ./gost
-copy --from=builder /app/ppproxy/target/x86_64-unknown-linux-musl/release/ppproxy .
+WORKDIR /app
+ADD rt_tables /etc/iproute2/rt_tables
+ADD nftables.conf /etc/nftables.conf
+COPY gost ./gost
+COPY --from=builder /app/ppproxy/target/x86_64-unknown-linux-musl/release/ppproxy .
 
-env TZ=Asia/Taipei
-env docker=true
+ENV TZ=Asia/Taipei
+ENV docker=true
 
-cmd ["./ppproxy"]
+CMD ["./ppproxy"]

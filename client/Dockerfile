@@ -1,20 +1,22 @@
-from alpine:latest
+FROM alpine:latest
 
-run apk add --no-cache iproute2
-run apk add --no-cache iptables
+RUN apk add --no-cache iproute2
+RUN apk add --no-cache iptables
+RUN apk add --no-cache tzdata
+RUN apk add --no-cache curl
 
-workdir /bin
-copy gost .
-workdir /app
-copy client/init.sh .
+WORKDIR /bin
+COPY gost .
+WORKDIR /app
+COPY client/init.sh .
 
-env TZ=Asia/Taipei
+ENV TZ=Asia/Taipei
 
-healthcheck \
+HEALTHCHECK \
   --interval=30s \
   --timeout=10s \
   --retries=3 \
   --start-period=2s \
-  CMD sh -c "ip link show | grep -q tun || exit 1"
+  CMD sh -c "curl -m 1 -I 1.1.1.1 || exit 1"
 
-cmd ["sh", "init.sh"]
+CMD ["sh", "init.sh"]
