@@ -190,6 +190,7 @@ impl PPPoEManager {
         for client in clients.iter() {
             let client = Arc::clone(client);
             PPPoEClient::connect(Arc::clone(&client)).await;
+            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
         }
         debug!("All PPPoE clients have been connected");
     }
