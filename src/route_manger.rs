@@ -26,7 +26,7 @@ pub async fn start_route() -> Result<()> {
 
     let mut route_tables = HashMap::new();
     route_tables.insert("eth0".into(), 100u32);
-    for i in 0..6 {
+    for i in 0..7 {
         route_tables.insert(format!("ppp{i}"), 101u32 + i);
     }
 
