@@ -30,7 +30,7 @@ pub async fn start_route() -> Result<()> {
         route_tables.insert(format!("ppp{i}"), 101u32 + i);
     }
 
-    for i in 0..7 {
+    for i in 0..8 {
         let table = 100 + i;
         let _ = add_rule(handle.clone(), table, format!("tun{i}"))
             .await
