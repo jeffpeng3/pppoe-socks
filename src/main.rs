@@ -13,7 +13,7 @@ mod route_manger;
 use pppoe_client::PPPoEClient;
 use pppoe_manager::PPPoEManager;
 use proxy_server::ProxyServer;
-use route_manger::start_route;
+use route_manger::init_route;
 
 #[tokio::main]
 async fn main() {
@@ -46,7 +46,7 @@ async fn main() {
         })
         .init();
 
-    let _ = start_route().await.map_err(|x| error!("{x:?}"));
+    let _ = init_route().await.map_err(|x| error!("{x:?}"));
 
     info!("Starting ppproxy Service");
 

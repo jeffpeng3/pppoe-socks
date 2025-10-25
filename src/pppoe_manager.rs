@@ -1,3 +1,4 @@
+use anyhow::Result;
 use chrono::{DateTime, Local, Timelike, Utc};
 use core::panic;
 use log::{debug, error, info, trace};
@@ -5,6 +6,7 @@ use std::collections::HashMap;
 use std::env;
 use std::sync::Arc;
 use sysinfo::Networks;
+use tokio::process::Command;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tokio::time::{self, Duration};
@@ -166,9 +168,30 @@ impl PPPoEManager {
         if let Some(ip) = local_ip.clone() {
             info!("{}: {}", interface, ip);
         }
-
+        let idx = interface.chars().last().unwrap().to_digit(10).unwrap();
+        self.add_default_route(interface, 101 + idx).await.unwrap();
         info.local_ip = local_ip;
         info.connected_at = connected_at;
+    }
+
+    pub async fn add_default_route(&self, interface: &str, table_id: u32) -> Result<()> {
+        Command::new("ip")
+            .args([
+                "route",
+                "add",
+                "default",
+                "dev",
+                interface,
+                "table",
+                &table_id.to_string(),
+            ])
+            .output()
+            .await
+            .map_err(|e| {
+                error!("Failed to add default route: {}", e);
+                e
+            })?;
+        Ok(())
     }
 
     pub async fn get_stats(&self, interface: &str) -> Option<ConnectionInfo> {
