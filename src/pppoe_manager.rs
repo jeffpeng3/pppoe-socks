@@ -246,6 +246,10 @@ impl PPPoEManager {
     pub async fn serve(&self) {
         debug!("Starting PPPoE Manager");
         self.start_all().await;
+        if self.config.rotation_time == "0" {
+            info!("IP rotation disabled");
+            return;
+        }
         loop {
             let secs = self.calculate_next_rotation_seconds();
             info!("Next IP rotation in {} seconds", secs);
