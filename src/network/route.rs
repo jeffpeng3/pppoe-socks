@@ -1,4 +1,3 @@
-use anyhow::Ok;
 use anyhow::{Result};
 use log::{error};
 use std::{env::var};
