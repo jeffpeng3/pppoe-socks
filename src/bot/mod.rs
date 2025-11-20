@@ -74,7 +74,7 @@ pub async fn status(ctx: Context<'_>) -> Result<()> {
             value.push_str("Disconnected");
         }
 
-        embed = embed.field(format!("{} {}", status_emoji, interface), value, true);
+        embed = embed.field(format!("{} {}", status_emoji, interface), value, false);
     }
 
     if all_healthy && any_connected {
