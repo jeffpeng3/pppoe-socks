@@ -46,7 +46,6 @@ impl AppConfig {
             .ok()
             .and_then(|id| id.parse().ok());
 
-        // Gost 使用獨立的 log level 設定，避免與 RUST_LOG 混淆
         let logger_level = env::var("GOST_LOG_LEVEL").unwrap_or_else(|_| "warn".to_string());
 
         let rotation_time = env::var("IP_ROTATION_TIME").context("IP_ROTATION_TIME not set")?;

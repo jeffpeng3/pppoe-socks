@@ -294,7 +294,6 @@ impl PPPoEManager {
             if let Err(e) = tx.send(ClientCommand::Connect).await {
                 error!("Failed to send Connect to {}: {}", interface, e);
             }
-            // Stagger connections slightly?
             tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
         }
         debug!("Sent Connect command to all clients");
@@ -365,7 +364,7 @@ impl PPPoEManager {
 
         time_string_to_sec(&self.config.rotation_time).unwrap_or_else(|e| {
             error!("Failed to parse rotation time: {}", e);
-            3600 // Default to 1 hour if parsing fails
+            3600
         })
     }
 
@@ -376,7 +375,6 @@ impl PPPoEManager {
         self.start_all().await;
         if self.config.rotation_time == "0" {
             info!("IP rotation disabled");
-            // Just wait forever
             loop {
                 tokio::time::sleep(Duration::from_secs(3600)).await;
             }

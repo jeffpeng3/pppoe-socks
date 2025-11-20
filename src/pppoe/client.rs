@@ -35,14 +35,13 @@ impl PPPoEClient {
             command_receiver,
             should_be_connected: false,
             reconnect_attempts: 0,
-            max_reconnect_attempts: 10, // 0 表示無限重試
+            max_reconnect_attempts: 0,
         }
     }
 
     pub async fn run(mut self) {
         info!("PPPoE Client {} started", self.interface);
 
-        // Initial connect
         self.should_be_connected = true;
         self.connect().await;
 
@@ -71,7 +70,6 @@ impl PPPoEClient {
                         }
                     }
                 }
-                // 監聽 pppd 進程退出
                 Some(result) = async {
                     if let Some(ref mut child) = self.pppd {
                         child.wait().await.ok()
@@ -82,18 +80,14 @@ impl PPPoEClient {
                     info!("{}: pppd process exited with {:?}", self.interface, result);
                     self.pppd = None;
 
-                    // 發送斷線事件
                     let _ = self.event_sender.send(PpmsEvent::Disconnected {
                         interface: self.interface.clone(),
                     }).await;
 
-                    // 如果應該保持連線，則自動重連
                     if self.should_be_connected {
-                        // 檢查是否超過最大重連次數（0 表示無限重試）
                         if self.max_reconnect_attempts == 0 || self.reconnect_attempts < self.max_reconnect_attempts {
                             self.reconnect_attempts += 1;
 
-                            // Linear backoff: min(5 * N, 30) seconds
                             let delay = std::cmp::min(
                                 5 * self.reconnect_attempts as u64,
                                 30
@@ -181,8 +175,6 @@ impl PPPoEClient {
                         }
                         line.clear();
                     }
-                    // stdout 關閉表示 pppd 進程即將結束
-                    // 斷線事件由 run() 中的進程監聽統一處理
                     if ip_obtained {
                         info!("{}: pppd stdout closed, connection likely lost", interface);
                     }
