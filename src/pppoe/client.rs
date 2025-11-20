@@ -6,7 +6,7 @@ use tokio::process::{Child, Command};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
-use crate::pppoe_manager::{ConnectionInfo, PPPoEManager};
+use crate::pppoe::manager::{ConnectionInfo, PPPoEManager};
 
 pub struct PPPoEClient {
     username: String,

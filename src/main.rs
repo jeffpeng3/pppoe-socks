@@ -2,18 +2,16 @@ use log::{error, info, trace};
 use std::sync::Arc;
 use tokio::process::Command;
 
-mod config;
-mod logger;
-mod pppoe_client;
-mod pppoe_manager;
-mod proxy_server;
-mod route_manager;
+mod core;
+mod network;
+mod pppoe;
+mod proxy;
 
-use config::AppConfig;
-use pppoe_manager::PPPoEManager;
-use proxy_server::ProxyServer;
-use route_manager::init_route;
-
+use crate::core::config::AppConfig;
+use crate::core::logger;
+use crate::network::route::init_route;
+use crate::pppoe::manager::PPPoEManager;
+use crate::proxy::server::ProxyServer;
 use anyhow::{Context, Result};
 
 #[tokio::main]

@@ -10,8 +10,8 @@ use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tokio::time::{self, Duration};
 
-use crate::config::{IpRotationConfig, time_string_to_sec};
-use crate::pppoe_client::PPPoEClient;
+use crate::core::config::{IpRotationConfig, time_string_to_sec};
+use crate::pppoe::client::PPPoEClient;
 
 #[derive(Debug, Clone, Default)]
 pub struct ConnectionInfo {
