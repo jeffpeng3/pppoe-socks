@@ -45,6 +45,25 @@ impl PPPoEManager {
         })
     }
 
+    pub fn create_clients(
+        manager: Arc<Self>,
+        username: String,
+        password: String,
+        count: u16,
+    ) -> Vec<Arc<Mutex<PPPoEClient>>> {
+        let mut clients = Vec::new();
+        for i in 0..count {
+            let client = PPPoEClient::new(
+                username.clone(),
+                password.clone(),
+                format!("ppp{}", i),
+                Arc::clone(&manager),
+            );
+            clients.push(client);
+        }
+        clients
+    }
+
     pub async fn set_clients(&self, clients: Vec<Arc<Mutex<PPPoEClient>>>) {
         *self.clients.lock().await = clients;
     }

@@ -20,6 +20,8 @@ pub struct AppConfig {
 
 impl AppConfig {
     pub fn load() -> Result<Self> {
+        dotenvy::dotenv().unwrap_or_default();
+
         let username = env::var("PPPOE_USERNAME").context("PPPOE_USERNAME not set")?;
         let password = env::var("PPPOE_PASSWORD").context("PPPOE_PASSWORD not set")?;
 
