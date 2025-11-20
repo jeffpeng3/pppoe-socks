@@ -96,12 +96,10 @@ impl PPPoEClient {
                         if self.max_reconnect_attempts == 0 || self.reconnect_attempts < self.max_reconnect_attempts {
                             self.reconnect_attempts += 1;
 
-                            // Exponential backoff: min(2^N * 2, 60) 秒
-                            let base_delay = 2u64;
-                            let max_delay = 60u64;
+                            // Linear backoff: min(5 * N, 30) seconds
                             let delay = std::cmp::min(
-                                base_delay * 2u64.pow(self.reconnect_attempts - 1),
-                                max_delay
+                                5 * self.reconnect_attempts as u64,
+                                30
                             );
 
                             info!(
