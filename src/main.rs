@@ -1,7 +1,9 @@
-use log::{error, info, trace};
+use log::{error, info};
 use std::sync::Arc;
 use tokio::process::Command;
+use tokio::sync::mpsc;
 
+mod bot;
 mod core;
 mod network;
 mod pppoe;
@@ -26,20 +28,38 @@ async fn main() -> Result<()> {
 
     let config = AppConfig::load()?;
 
+    let (event_tx, event_rx) = mpsc::channel(100);
+
     let pppoe_manager = PPPoEManager::new(config.ip_rotation.clone());
+    pppoe_manager.set_event_receiver(event_rx).await;
     PPPoEManager::start_stats_task(Arc::clone(&pppoe_manager)).await;
 
-    let clients = PPPoEManager::create_clients(
-        Arc::clone(&pppoe_manager),
-        config.username.clone(),
-        config.password.clone(),
-        config.session_count,
-    );
+    pppoe_manager
+        .start_clients(
+            config.username.clone(),
+            config.password.clone(),
+            config.session_count,
+            event_tx,
+        )
+        .await;
 
-    pppoe_manager.set_clients(clients.clone()).await;
+    let pppoe_manager_clone = Arc::clone(&pppoe_manager);
+    tokio::spawn(async move {
+        pppoe_manager_clone.run_event_loop().await;
+    });
+
     let pppoe_manager_clone = Arc::clone(&pppoe_manager);
     tokio::spawn(async move {
         pppoe_manager_clone.serve().await;
+    });
+
+    let pppoe_manager_clone = Arc::clone(&pppoe_manager);
+    let discord_token = config.discord_token.clone();
+    let discord_guild_id = config.discord_guild_id;
+    tokio::spawn(async move {
+        if let Err(e) = bot::start_bot(discord_token, discord_guild_id, pppoe_manager_clone).await {
+            error!("Discord bot error: {:?}", e);
+        }
     });
 
     let proxy = ProxyServer::new(config.session_count, config.logger_level.clone());
@@ -53,15 +73,8 @@ async fn main() -> Result<()> {
                 info!("Shutting down...");
                 break;
             }
-            _ = tokio::time::sleep(tokio::time::Duration::from_secs(1)) => {
-                for client in &clients {
-                    let c = client.lock().await;
-                    if *c.connected.lock().await
-                        && let Some(stats) = c.get_traffic_stats().await
-                    {
-                        trace!("{} {:?}", c.interface, stats);
-                    }
-                }
+            _ = tokio::time::sleep(tokio::time::Duration::from_secs(5)) => {
+                // Optional: Log stats periodically if needed, or rely on events
             }
         }
     }

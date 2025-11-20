@@ -16,6 +16,8 @@ pub struct AppConfig {
     pub session_count: u16,
     pub ip_rotation: IpRotationConfig,
     pub logger_level: String,
+    pub discord_token: String,
+    pub discord_guild_id: Option<u64>,
 }
 
 impl AppConfig {
@@ -29,6 +31,11 @@ impl AppConfig {
             .unwrap_or_else(|_| "1".to_string())
             .parse()
             .unwrap_or(1);
+
+        let discord_token = env::var("DISCORD_TOKEN").context("DISCORD_TOKEN not set")?;
+        let discord_guild_id = env::var("DISCORD_GUILD_ID")
+            .ok()
+            .and_then(|id| id.parse().ok());
 
         let logger_level = env::var("RUST_LOG").unwrap_or_else(|_| "warn".to_string());
 
@@ -63,6 +70,8 @@ impl AppConfig {
             session_count,
             ip_rotation,
             logger_level,
+            discord_token,
+            discord_guild_id,
         })
     }
 }
