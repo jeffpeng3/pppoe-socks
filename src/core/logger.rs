@@ -18,5 +18,6 @@ pub fn init() {
                 record.args(),
             )
         })
+        .filter_module("serenity", log::LevelFilter::Warn)
         .init();
 }
