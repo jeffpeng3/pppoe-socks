@@ -27,36 +27,65 @@ pub async fn status(ctx: Context<'_>) -> Result<()> {
     let manager = &ctx.data().manager;
     let stats = manager.get_all_stats().await;
 
-    let mut response = String::from("**PPPoE Connection Status**\n");
+    let mut embed = serenity::CreateEmbed::default()
+        .title("PPPoE Connection Status")
+        .timestamp(chrono::Utc::now());
+
+    let mut all_healthy = true;
+    let mut any_connected = false;
+
     for (interface, info) in stats {
-        response.push_str(&format!("**{}**: ", interface));
+        let status_emoji = if info.local_ip.is_some() {
+            any_connected = true;
+            if info.is_healthy {
+                "✅"
+            } else {
+                all_healthy = false;
+                "⚠️"
+            }
+        } else {
+            "🔴"
+        };
+
+        let mut value = String::new();
         if let Some(ip) = info.local_ip {
-            response.push_str(&format!("Connected (IP: {})", ip));
+            value.push_str(&format!("**IP:** {}\n", ip));
             if let Some(connected_at) = info.connected_at {
                 let duration = chrono::Utc::now() - connected_at;
-                response.push_str(&format!(", Uptime: {}s", duration.num_seconds()));
+                let hours = duration.num_hours();
+                let minutes = duration.num_minutes() % 60;
+                let seconds = duration.num_seconds() % 60;
+                value.push_str(&format!(
+                    "**Uptime:** {:02}:{:02}:{:02}\n",
+                    hours, minutes, seconds
+                ));
             }
-
-            if info.is_healthy {
-                response.push_str(" ✅");
-            } else {
-                response.push_str(&format!(" ⚠️ (Failures: {})", info.consecutive_failures));
+            if !info.is_healthy {
+                value.push_str(&format!("**Failures:** {}\n", info.consecutive_failures));
             }
-
             if let Some(last_check) = info.last_health_check {
                 let since_check = chrono::Utc::now() - last_check;
-                response.push_str(&format!(
-                    " [Last check: {}s ago]",
+                value.push_str(&format!(
+                    "**Last Check:** {}s ago\n",
                     since_check.num_seconds()
                 ));
             }
         } else {
-            response.push_str("Disconnected");
+            value.push_str("Disconnected");
         }
-        response.push('\n');
+
+        embed = embed.field(format!("{} {}", status_emoji, interface), value, true);
     }
 
-    ctx.say(response).await?;
+    if all_healthy && any_connected {
+        embed = embed.color(0x00FF00); // Green
+    } else if any_connected {
+        embed = embed.color(0xFFA500); // Orange
+    } else {
+        embed = embed.color(0xFF0000); // Red
+    }
+
+    ctx.send(poise::CreateReply::default().embed(embed)).await?;
     Ok(())
 }
 
