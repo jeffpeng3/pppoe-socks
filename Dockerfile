@@ -1,5 +1,7 @@
 FROM rust AS builder
 
+RUN apt-get update && apt-get install -y musl-tools && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 RUN rustup target add x86_64-unknown-linux-musl
 
@@ -20,8 +22,7 @@ RUN apk add --no-cache ppp-pppoe
 RUN apk add --no-cache nftables
 RUN apk add --no-cache tzdata
 RUN apk add --no-cache iproute2
-# RUN apk add --no-cache curl
-# RUN apk add curl iputils-ping
+RUN apk add --no-cache curl iputils-ping
 
 WORKDIR /app
 ADD rt_tables /etc/iproute2/rt_tables
