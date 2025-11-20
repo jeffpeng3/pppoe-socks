@@ -2,7 +2,7 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 
 use log::{debug, error, info, trace};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use sysinfo::Networks;
 use tokio::process::Command;
@@ -49,8 +49,8 @@ pub enum PpmsEvent {
 }
 
 pub struct PPPoEManager {
-    data: Arc<Mutex<HashMap<String, ConnectionInfo>>>,
-    client_controls: Arc<Mutex<HashMap<String, mpsc::Sender<ClientCommand>>>>,
+    data: Arc<Mutex<BTreeMap<String, ConnectionInfo>>>,
+    client_controls: Arc<Mutex<BTreeMap<String, mpsc::Sender<ClientCommand>>>>,
     config: IpRotationConfig,
     stats_task: Mutex<Option<JoinHandle<()>>>,
     health_check_task: Mutex<Option<JoinHandle<()>>>,
@@ -62,8 +62,8 @@ impl PPPoEManager {
         info!("IP Rotation Config: {:?}", config);
 
         Arc::new(Self {
-            data: Arc::new(Mutex::new(HashMap::new())),
-            client_controls: Arc::new(Mutex::new(HashMap::new())),
+            data: Arc::new(Mutex::new(BTreeMap::new())),
+            client_controls: Arc::new(Mutex::new(BTreeMap::new())),
             config,
             stats_task: Mutex::new(None),
             health_check_task: Mutex::new(None),
@@ -334,7 +334,7 @@ impl PPPoEManager {
         }
     }
 
-    pub async fn get_all_stats(&self) -> HashMap<String, ConnectionInfo> {
+    pub async fn get_all_stats(&self) -> BTreeMap<String, ConnectionInfo> {
         let data = self.data.lock().await;
         data.clone()
     }
