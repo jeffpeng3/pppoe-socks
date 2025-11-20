@@ -1,6 +1,5 @@
 use crate::pppoe::manager::PPPoEManager;
 use anyhow::{Error, Result};
-use log::error;
 use poise::serenity_prelude as serenity;
 use std::sync::Arc;
 
@@ -10,6 +9,19 @@ pub struct Data {
 
 pub type Context<'a> = poise::Context<'a, Data, Error>;
 
+/// Autocomplete function for interface names
+async fn autocomplete_interface<'a>(ctx: Context<'a>, partial: &'a str) -> Vec<String> {
+    let manager = &ctx.data().manager;
+    let stats = manager.get_all_stats().await;
+
+    stats
+        .keys()
+        .filter(|name| name.starts_with(partial))
+        .map(|s| s.to_string())
+        .collect()
+}
+
+/// Get the status of all PPPoE interfaces
 #[poise::command(slash_command)]
 pub async fn status(ctx: Context<'_>) -> Result<()> {
     let manager = &ctx.data().manager;
@@ -34,10 +46,13 @@ pub async fn status(ctx: Context<'_>) -> Result<()> {
     Ok(())
 }
 
+/// Reconnect a specific PPPoE interface
 #[poise::command(slash_command)]
 pub async fn reconnect(
     ctx: Context<'_>,
-    #[description = "Interface name (e.g., ppp0)"] interface: String,
+    #[description = "Interface name (e.g., ppp0)"]
+    #[autocomplete = "autocomplete_interface"]
+    interface: String,
 ) -> Result<()> {
     let manager = &ctx.data().manager;
     match manager.reconnect_client(&interface).await {
@@ -52,10 +67,13 @@ pub async fn reconnect(
     Ok(())
 }
 
+/// Disconnect a specific PPPoE interface
 #[poise::command(slash_command)]
 pub async fn disconnect(
     ctx: Context<'_>,
-    #[description = "Interface name (e.g., ppp0)"] interface: String,
+    #[description = "Interface name (e.g., ppp0)"]
+    #[autocomplete = "autocomplete_interface"]
+    interface: String,
 ) -> Result<()> {
     let manager = &ctx.data().manager;
     match manager.disconnect_client(&interface).await {
@@ -70,10 +88,13 @@ pub async fn disconnect(
     Ok(())
 }
 
+/// Connect a specific PPPoE interface
 #[poise::command(slash_command)]
 pub async fn connect(
     ctx: Context<'_>,
-    #[description = "Interface name (e.g., ppp0)"] interface: String,
+    #[description = "Interface name (e.g., ppp0)"]
+    #[autocomplete = "autocomplete_interface"]
+    interface: String,
 ) -> Result<()> {
     let manager = &ctx.data().manager;
     match manager.connect_client(&interface).await {
@@ -116,8 +137,7 @@ pub async fn start_bot(
             })
         })
         .build();
-    
-    error!("Loaded");
+
     let client = serenity::ClientBuilder::new(token, intents)
         .framework(framework)
         .await;
