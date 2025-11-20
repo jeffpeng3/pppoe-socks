@@ -1,8 +1,8 @@
 use log::{debug, error};
 use serde_json::{Value, json};
+use std::env;
 use std::process::Stdio;
 use std::sync::Arc;
-use std::env;
 use tokio::process::{Child, Command};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
@@ -143,6 +143,18 @@ impl ProxyServer {
             let _exit_status = child.wait().await.expect("Failed to wait for child");
             debug!("Proxy service exited abnormally, restarting...");
             respawn_proxy_server(mutex_proxy);
+        }
+    }
+
+    pub async fn stop(proxy: Arc<Mutex<Self>>) {
+        let mut p = proxy.lock().await;
+        if let Some(guard) = p.guard_task.take() {
+            guard.abort();
+        }
+        if let Some(mut child) = p.process.take() {
+            debug!("Stopping proxy service...");
+            let _ = child.kill().await;
+            debug!("Proxy service stopped");
         }
     }
 }

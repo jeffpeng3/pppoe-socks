@@ -15,14 +15,16 @@ use pppoe_manager::PPPoEManager;
 use proxy_server::ProxyServer;
 use route_manager::init_route;
 
+use anyhow::{Context, Result};
+
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
     Command::new("nft")
         .arg("-f")
         .arg("/etc/nftables.conf")
         .status()
         .await
-        .expect("Failed to execute nft command");
+        .context("Failed to execute nft command")?;
 
     dotenvy::dotenv().unwrap_or_default();
 
@@ -53,8 +55,8 @@ async fn main() {
     let pppoe_manager = PPPoEManager::new();
     PPPoEManager::start_stats_task(Arc::clone(&pppoe_manager)).await;
 
-    let username = env::var("PPPOE_USERNAME").expect("PPPOE_USERNAME not set");
-    let password = env::var("PPPOE_PASSWORD").expect("PPPOE_PASSWORD not set");
+    let username = env::var("PPPOE_USERNAME").context("PPPOE_USERNAME not set")?;
+    let password = env::var("PPPOE_PASSWORD").context("PPPOE_PASSWORD not set")?;
     let session_count: u16 = env::var("PPPOE_SESSION_COUNT")
         .unwrap_or_else(|_| "1".to_string())
         .parse()
@@ -79,16 +81,33 @@ async fn main() {
     });
 
     let proxy = ProxyServer::new(session_count, logger_level);
-    ProxyServer::start(proxy).await;
+    ProxyServer::start(Arc::clone(&proxy)).await;
+
+    info!("Service started. Press Ctrl+C to stop.");
+
     loop {
-        for client in &clients {
-            let c = client.lock().await;
-            if *c.connected.lock().await
-                && let Some(stats) = c.get_traffic_stats().await
-            {
-                trace!("{} {:?}", c.interface, stats);
+        tokio::select! {
+            _ = tokio::signal::ctrl_c() => {
+                info!("Shutting down...");
+                break;
+            }
+            _ = tokio::time::sleep(tokio::time::Duration::from_secs(1)) => {
+                for client in &clients {
+                    let c = client.lock().await;
+                    if *c.connected.lock().await
+                        && let Some(stats) = c.get_traffic_stats().await
+                    {
+                        trace!("{} {:?}", c.interface, stats);
+                    }
+                }
             }
         }
-        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
     }
+
+    info!("Stopping services...");
+    pppoe_manager.stop_all().await;
+    ProxyServer::stop(proxy).await;
+    info!("Goodbye!");
+
+    Ok(())
 }
