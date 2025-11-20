@@ -1,11 +1,71 @@
 use log::{debug, error};
-use serde_json::{Value, json};
+use serde::Serialize;
+use std::collections::HashMap;
 use std::env;
 use std::process::Stdio;
 use std::sync::Arc;
 use tokio::process::{Child, Command};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
+
+#[derive(Serialize)]
+struct GostConfig {
+    services: Vec<Service>,
+    bypasses: Vec<Bypass>,
+    api: ApiConfig,
+    metrics: MetricsConfig,
+    log: LogConfig,
+}
+
+#[derive(Serialize)]
+struct Service {
+    name: String,
+    addr: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    bypass: Option<String>,
+    handler: Handler,
+    listener: Listener,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    metadata: Option<HashMap<String, String>>,
+}
+
+#[derive(Serialize)]
+struct Handler {
+    #[serde(rename = "type")]
+    handler_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    metadata: Option<HashMap<String, serde_json::Value>>,
+}
+
+#[derive(Serialize)]
+struct Listener {
+    #[serde(rename = "type")]
+    listener_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    metadata: Option<HashMap<String, String>>,
+}
+
+#[derive(Serialize)]
+struct Bypass {
+    name: String,
+    matchers: Vec<String>,
+}
+
+#[derive(Serialize)]
+struct ApiConfig {
+    addr: String,
+}
+
+#[derive(Serialize)]
+struct MetricsConfig {
+    addr: String,
+}
+
+#[derive(Serialize)]
+struct LogConfig {
+    format: String,
+    level: String,
+}
 
 pub struct ProxyServer {
     process: Option<Child>,
@@ -17,63 +77,67 @@ fn respawn_proxy_server(proxy: Arc<Mutex<ProxyServer>>) {
     tokio::spawn(Box::pin(ProxyServer::start(proxy)));
 }
 
-fn proxy_service(index: u16, interface: &str) -> Value {
-    json!({
-      "name": format!("if{}-proxy", index),
-      "addr": format!(":{}", 8080 + index),
-      "bypass": "local-bypass",
-      "handler": {
-        "type": "auto",
-        "metadata": {
-          "udp": "true",
-          "udpBufferSize": "65565"
-        }
-      },
-      "listener": {
-        "type": "tcp",
-      },
-      "metadata": {
-        "interface": interface,
-      }
-    })
+fn proxy_service(index: u16, interface: &str) -> Service {
+    let mut handler_metadata = HashMap::new();
+    handler_metadata.insert("udp".to_string(), serde_json::json!("true"));
+    handler_metadata.insert("udpBufferSize".to_string(), serde_json::json!("65565"));
+
+    let mut service_metadata = HashMap::new();
+    service_metadata.insert("interface".to_string(), interface.to_string());
+
+    Service {
+        name: format!("if{}-proxy", index),
+        addr: format!(":{}", 8080 + index),
+        bypass: Some("local-bypass".to_string()),
+        handler: Handler {
+            handler_type: "auto".to_string(),
+            metadata: Some(handler_metadata),
+        },
+        listener: Listener {
+            listener_type: "tcp".to_string(),
+            metadata: None,
+        },
+        metadata: Some(service_metadata),
+    }
 }
 
-fn tun_service(index: u16, interface: &str) -> Value {
-    json!({
-      "name": format!("if{}-tun", index),
-      "addr": format!(":{}", 8880 + index),
-      "handler": {
-        "type": "tun",
-        "metadata": {
-          "bufferSize": 65535,
-        }
-      },
-      "bypass": "local-bypass",
-      "listener": {
-        "type": "tun",
-        "metadata": {
-          "name": interface,
-          "net": format!("192.168.{}.1/24", 100 + index),
-        }
-      }
-    })
+fn tun_service(index: u16, interface: &str) -> Service {
+    let mut handler_metadata = HashMap::new();
+    handler_metadata.insert("bufferSize".to_string(), serde_json::json!(65535));
+
+    let mut listener_metadata = HashMap::new();
+    listener_metadata.insert("name".to_string(), interface.to_string());
+    listener_metadata.insert("net".to_string(), format!("192.168.{}.1/24", 100 + index));
+
+    Service {
+        name: format!("if{}-tun", index),
+        addr: format!(":{}", 8880 + index),
+        bypass: Some("local-bypass".to_string()),
+        handler: Handler {
+            handler_type: "tun".to_string(),
+            metadata: Some(handler_metadata),
+        },
+        listener: Listener {
+            listener_type: "tun".to_string(),
+            metadata: Some(listener_metadata),
+        },
+        metadata: None,
+    }
 }
 
 impl ProxyServer {
     pub fn new(session_count: u16, logger_level: String) -> Arc<Mutex<Self>> {
-        let bypass = json!([
-          {
-            "name": "local-bypass",
-            "matchers": [
-              "127.0.0.1/8",
-              "10.0.0.0/8",
-              "172.16.0.0/12",
-              "192.168.0.0/16",
-              "::1/128",
-              "fc00::/7"
-            ]
-          }
-        ]);
+        let bypass = Bypass {
+            name: "local-bypass".to_string(),
+            matchers: vec![
+                "127.0.0.1/8".to_string(),
+                "10.0.0.0/8".to_string(),
+                "172.16.0.0/12".to_string(),
+                "192.168.0.0/16".to_string(),
+                "::1/128".to_string(),
+                "fc00::/7".to_string(),
+            ],
+        };
 
         let mut services = Vec::new();
 
@@ -85,21 +149,21 @@ impl ProxyServer {
             services.push(tun_service(i + 1, &format!("tun{}", i + 1)));
         }
 
-        let config = json!({
-            "services": services,
-            "bypasses": bypass,
-            "api": {
-                "addr": ":18080"
+        let config = GostConfig {
+            services,
+            bypasses: vec![bypass],
+            api: ApiConfig {
+                addr: ":18080".to_string(),
             },
-            "metrics": {
-                "addr": ":9000"
+            metrics: MetricsConfig {
+                addr: ":9000".to_string(),
             },
-            "log": {
-                "format": "text",
-                "level": logger_level
+            log: LogConfig {
+                format: "text".to_string(),
+                level: logger_level,
             },
-        });
-        let config_json = config.to_string();
+        };
+        let config_json = serde_json::to_string(&config).expect("Failed to serialize config");
 
         Arc::new(Mutex::new(Self {
             process: None,
