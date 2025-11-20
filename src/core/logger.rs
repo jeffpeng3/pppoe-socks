@@ -18,6 +18,6 @@ pub fn init() {
                 record.args(),
             )
         })
-        .filter_module("serenity", log::LevelFilter::Warn)
+        .filter_module("serenity::gateway::bridge::shard_runner", log::LevelFilter::Warn)
         .init();
 }
