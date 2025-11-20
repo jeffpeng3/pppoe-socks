@@ -36,6 +36,20 @@ pub async fn status(ctx: Context<'_>) -> Result<()> {
                 let duration = chrono::Utc::now() - connected_at;
                 response.push_str(&format!(", Uptime: {}s", duration.num_seconds()));
             }
+
+            if info.is_healthy {
+                response.push_str(" ✅");
+            } else {
+                response.push_str(&format!(" ⚠️ (Failures: {})", info.consecutive_failures));
+            }
+
+            if let Some(last_check) = info.last_health_check {
+                let since_check = chrono::Utc::now() - last_check;
+                response.push_str(&format!(
+                    " [Last check: {}s ago]",
+                    since_check.num_seconds()
+                ));
+            }
         } else {
             response.push_str("Disconnected");
         }
@@ -109,6 +123,29 @@ pub async fn connect(
     Ok(())
 }
 
+/// Trigger a health check for a specific PPPoE interface
+#[poise::command(slash_command)]
+pub async fn healthcheck(
+    ctx: Context<'_>,
+    #[description = "Interface name (e.g., ppp0)"]
+    #[autocomplete = "autocomplete_interface"]
+    interface: String,
+) -> Result<()> {
+    let manager = &ctx.data().manager;
+    ctx.say(format!("Running health check for {}...", interface))
+        .await?;
+
+    let is_healthy = manager.check_health(&interface).await;
+    manager.update_health_status(&interface, is_healthy).await;
+
+    if is_healthy {
+        ctx.say(format!("✅ {} is healthy", interface)).await?;
+    } else {
+        ctx.say(format!("⚠️ {} is unhealthy", interface)).await?;
+    }
+    Ok(())
+}
+
 pub async fn start_bot(
     token: String,
     guild_id: Option<u64>,
@@ -118,7 +155,13 @@ pub async fn start_bot(
 
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
-            commands: vec![status(), reconnect(), disconnect(), connect()],
+            commands: vec![
+                status(),
+                reconnect(),
+                disconnect(),
+                connect(),
+                healthcheck(),
+            ],
             ..Default::default()
         })
         .setup(move |ctx, _ready, framework| {

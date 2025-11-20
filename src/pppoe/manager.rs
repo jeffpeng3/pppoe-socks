@@ -24,6 +24,9 @@ pub struct ConnectionInfo {
     pub uptime_seconds: u64,
     pub send_rate_bps: u64,
     pub receive_rate_bps: u64,
+    pub is_healthy: bool,
+    pub last_health_check: Option<DateTime<Utc>>,
+    pub consecutive_failures: u32,
 }
 
 #[derive(Debug)]
@@ -50,6 +53,7 @@ pub struct PPPoEManager {
     client_controls: Arc<Mutex<HashMap<String, mpsc::Sender<ClientCommand>>>>,
     config: IpRotationConfig,
     stats_task: Mutex<Option<JoinHandle<()>>>,
+    health_check_task: Mutex<Option<JoinHandle<()>>>,
     event_receiver: Mutex<Option<mpsc::Receiver<PpmsEvent>>>,
 }
 
@@ -62,6 +66,7 @@ impl PPPoEManager {
             client_controls: Arc::new(Mutex::new(HashMap::new())),
             config,
             stats_task: Mutex::new(None),
+            health_check_task: Mutex::new(None),
             event_receiver: Mutex::new(None),
         })
     }
@@ -123,6 +128,112 @@ impl PPPoEManager {
             }
         });
         *manager.stats_task.lock().await = Some(task);
+    }
+
+    pub async fn start_health_check_task(manager: Arc<Self>) {
+        if !manager.config.health_check_enabled {
+            info!("Health check is disabled");
+            return;
+        }
+
+        info!(
+            "Starting health check task (interval: {}s, threshold: {}, target: {})",
+            manager.config.health_check_interval_secs,
+            manager.config.health_check_failure_threshold,
+            manager.config.health_check_target
+        );
+
+        let manager_clone = Arc::clone(&manager);
+        let task = tokio::spawn(async move {
+            let interval = Duration::from_secs(manager_clone.config.health_check_interval_secs);
+            loop {
+                tokio::time::sleep(interval).await;
+
+                let data_lock = manager_clone.data.lock().await;
+                let interfaces: Vec<String> = data_lock
+                    .iter()
+                    .filter_map(|(iface, info)| {
+                        if info.local_ip.is_some() {
+                            Some(iface.clone())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+                drop(data_lock);
+
+                for interface in interfaces {
+                    let is_healthy = manager_clone.check_health(&interface).await;
+                    manager_clone
+                        .update_health_status(&interface, is_healthy)
+                        .await;
+                }
+            }
+        });
+        *manager.health_check_task.lock().await = Some(task);
+    }
+
+    pub async fn check_health(&self, interface: &str) -> bool {
+        let target = &self.config.health_check_target;
+
+        debug!(
+            "Performing health check for {} (ping {})",
+            interface, target
+        );
+
+        let output = Command::new("ping")
+            .args(["-c", "1", "-W", "2", "-I", interface, target])
+            .output()
+            .await;
+
+        match output {
+            Ok(result) => {
+                let success = result.status.success();
+                if success {
+                    trace!("Health check passed for {}", interface);
+                } else {
+                    debug!("Health check failed for {}", interface);
+                }
+                success
+            }
+            Err(e) => {
+                error!("Failed to execute ping for {}: {}", interface, e);
+                false
+            }
+        }
+    }
+
+    pub async fn update_health_status(&self, interface: &str, is_healthy: bool) {
+        let mut data = self.data.lock().await;
+        if let Some(info) = data.get_mut(interface) {
+            info.last_health_check = Some(Utc::now());
+
+            if is_healthy {
+                info.is_healthy = true;
+                info.consecutive_failures = 0;
+            } else {
+                info.is_healthy = false;
+                info.consecutive_failures += 1;
+
+                debug!(
+                    "{}: consecutive failures = {}/{}",
+                    interface,
+                    info.consecutive_failures,
+                    self.config.health_check_failure_threshold
+                );
+
+                if info.consecutive_failures >= self.config.health_check_failure_threshold {
+                    error!(
+                        "{}: Health check failed {} times, triggering reconnect",
+                        interface, info.consecutive_failures
+                    );
+                    drop(data);
+                    if let Err(e) = self.reconnect_client(interface).await {
+                        error!("Failed to reconnect {}: {}", interface, e);
+                    }
+                }
+            }
+        }
     }
 
     pub async fn update_connection_info(
@@ -253,9 +364,10 @@ impl PPPoEManager {
         time_string_to_sec(&self.config.rotation_time)
     }
 
-    pub async fn serve(&self) {
+    pub async fn serve(self: Arc<Self>) {
         debug!("Starting PPPoE Manager");
 
+        PPPoEManager::start_health_check_task(Arc::clone(&self)).await;
         self.start_all().await;
         if self.config.rotation_time == "0" {
             info!("IP rotation disabled");

@@ -7,6 +7,10 @@ use std::env;
 pub struct IpRotationConfig {
     pub rotation_time: String,
     pub wait_seconds: u32,
+    pub health_check_enabled: bool,
+    pub health_check_interval_secs: u64,
+    pub health_check_failure_threshold: u32,
+    pub health_check_target: String,
 }
 
 #[derive(Debug, Clone)]
@@ -66,9 +70,31 @@ impl AppConfig {
             .parse::<u32>()
             .expect("Invalid IP_ROTATION_WAIT_SECONDS: Must be a non-negative integer");
 
+        let health_check_enabled = env::var("HEALTH_CHECK_ENABLED")
+            .unwrap_or_else(|_| "true".to_string())
+            .parse()
+            .unwrap_or(true);
+
+        let health_check_interval_secs = env::var("HEALTH_CHECK_INTERVAL")
+            .unwrap_or_else(|_| "30".to_string())
+            .parse()
+            .unwrap_or(30);
+
+        let health_check_failure_threshold = env::var("HEALTH_CHECK_THRESHOLD")
+            .unwrap_or_else(|_| "3".to_string())
+            .parse()
+            .unwrap_or(3);
+
+        let health_check_target =
+            env::var("HEALTH_CHECK_TARGET").unwrap_or_else(|_| "8.8.8.8".to_string());
+
         let ip_rotation = IpRotationConfig {
             rotation_time,
             wait_seconds,
+            health_check_enabled,
+            health_check_interval_secs,
+            health_check_failure_threshold,
+            health_check_target,
         };
 
         Ok(Self {
