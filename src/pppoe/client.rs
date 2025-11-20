@@ -235,6 +235,14 @@ impl PPPoEClient {
     async fn disconnect(&mut self) {
         if let Some(mut child) = self.pppd.take() {
             let _ = child.kill().await;
+            let _ = child.wait().await;
         }
+
+        let _ = self
+            .event_sender
+            .send(PpmsEvent::Disconnected {
+                interface: self.interface.clone(),
+            })
+            .await;
     }
 }
