@@ -81,7 +81,6 @@ impl PPPoEManager {
         password: String,
         count: u16,
         event_sender: mpsc::Sender<PpmsEvent>,
-        dry_run: bool,
     ) {
         let mut controls = self.client_controls.lock().await;
         for i in 0..count {
@@ -94,7 +93,6 @@ impl PPPoEManager {
                 interface.clone(),
                 event_sender.clone(),
                 cmd_rx,
-                dry_run,
             );
 
             tokio::spawn(client.run());
@@ -250,8 +248,12 @@ impl PPPoEManager {
         if let Some(ip) = local_ip.clone() {
             info!("{}: {}", interface, ip);
         }
-        let idx = interface.chars().last().unwrap().to_digit(10).unwrap();
-        self.add_default_route(interface, 101 + idx).await.unwrap();
+        // Robust interface index parsing
+        let idx: u32 = interface.trim_start_matches("ppp").parse().unwrap_or(0);
+
+        if let Err(e) = self.add_default_route(interface, 101 + idx).await {
+            error!("Failed to add default route for {}: {}", interface, e);
+        }
         info.local_ip = local_ip;
         info.connected_at = connected_at;
     }
@@ -361,7 +363,10 @@ impl PPPoEManager {
             return interval * 60;
         }
 
-        time_string_to_sec(&self.config.rotation_time)
+        time_string_to_sec(&self.config.rotation_time).unwrap_or_else(|e| {
+            error!("Failed to parse rotation time: {}", e);
+            3600 // Default to 1 hour if parsing fails
+        })
     }
 
     pub async fn serve(self: Arc<Self>) {

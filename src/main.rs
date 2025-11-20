@@ -21,11 +21,11 @@ async fn main() -> Result<()> {
     // Load config first to get dry_run flag
     let config = AppConfig::load()?;
 
-    setup_nft(config.dry_run).await?;
+    setup_nft().await?;
 
     logger::init();
 
-    let _ = init_route(config.dry_run)
+    let _ = init_route(&config.gateway)
         .await
         .map_err(|x| error!("{x:?}"));
 
@@ -41,7 +41,6 @@ async fn main() -> Result<()> {
             config.password.clone(),
             config.session_count,
             event_tx,
-            config.dry_run,
         )
         .await;
 
@@ -64,11 +63,7 @@ async fn main() -> Result<()> {
         }
     });
 
-    let proxy = ProxyServer::new(
-        config.session_count,
-        config.logger_level.clone(),
-        config.dry_run,
-    );
+    let proxy = ProxyServer::new(config.session_count, config.logger_level.clone());
     ProxyServer::start(Arc::clone(&proxy)).await;
 
     info!("Service started. Press Ctrl+C to stop.");
@@ -93,12 +88,7 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-async fn setup_nft(dry_run: bool) -> Result<()> {
-    if dry_run {
-        info!("[DRY-RUN] Skipping nftables setup");
-        return Ok(());
-    }
-
+async fn setup_nft() -> Result<()> {
     Command::new("nft")
         .arg("-f")
         .arg("/etc/nftables.conf")

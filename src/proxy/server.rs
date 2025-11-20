@@ -71,7 +71,6 @@ pub struct ProxyServer {
     process: Option<Child>,
     config_json: String,
     guard_task: Option<JoinHandle<()>>,
-    dry_run: bool,
 }
 
 fn respawn_proxy_server(proxy: Arc<Mutex<ProxyServer>>) {
@@ -127,7 +126,7 @@ fn tun_service(index: u16, interface: &str) -> Service {
 }
 
 impl ProxyServer {
-    pub fn new(session_count: u16, logger_level: String, dry_run: bool) -> Arc<Mutex<Self>> {
+    pub fn new(session_count: u16, logger_level: String) -> Arc<Mutex<Self>> {
         let bypass = Bypass {
             name: "local-bypass".to_string(),
             matchers: vec![
@@ -170,17 +169,10 @@ impl ProxyServer {
             process: None,
             config_json,
             guard_task: None,
-            dry_run,
         }))
     }
 
     pub async fn start(proxy: Arc<Mutex<Self>>) {
-        let p_check = proxy.lock().await;
-        if p_check.dry_run {
-            debug!("[DRY-RUN] Skipping proxy server startup");
-            return;
-        }
-        drop(p_check);
         let guard_proxy = Arc::clone(&proxy);
         let mut p = proxy.lock().await;
         debug!("Starting proxy service with JSON config: {}", p.config_json);
@@ -213,7 +205,8 @@ impl ProxyServer {
         info!("Proxy service guard started");
         if let Some(mut child) = child_to_wait {
             let _exit_status = child.wait().await.expect("Failed to wait for child");
-            info!("Proxy service exited abnormally, restarting...");
+            info!("Proxy service exited abnormally, restarting in 5 seconds...");
+            tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
             respawn_proxy_server(mutex_proxy);
         }
     }
