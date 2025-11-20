@@ -8,12 +8,12 @@ use tokio::sync::Mutex;
 mod pppoe_client;
 mod pppoe_manager;
 mod proxy_server;
-mod route_manger;
+mod route_manager;
 
 use pppoe_client::PPPoEClient;
 use pppoe_manager::PPPoEManager;
 use proxy_server::ProxyServer;
-use route_manger::init_route;
+use route_manager::init_route;
 
 #[tokio::main]
 async fn main() {
