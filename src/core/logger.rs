@@ -4,7 +4,7 @@ use env_logger::fmt::style::{AnsiColor, Style};
 use std::io::Write;
 
 pub fn init() {
-    Builder::from_env(env_logger::Env::default())
+    Builder::from_env(env_logger::Env::default().default_filter_or("info"))
         .format(|buf, record| {
             let subtle = Style::new().fg_color(Some(AnsiColor::BrightBlack.into()));
             let level_style = buf.default_level_style(record.level());
@@ -18,6 +18,6 @@ pub fn init() {
                 record.args(),
             )
         })
-        .filter_module("serenity::gateway::bridge::shard_runner", log::LevelFilter::Warn)
+        .filter_module("serenity", log::LevelFilter::Warn)
         .init();
 }
