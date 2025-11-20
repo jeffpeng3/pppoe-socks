@@ -1,15 +1,16 @@
 use env_logger::Builder;
 use log::{error, info, trace};
-use std::env;
 use std::sync::Arc;
 use tokio::process::Command;
 use tokio::sync::Mutex;
 
+mod config;
 mod pppoe_client;
 mod pppoe_manager;
 mod proxy_server;
 mod route_manager;
 
+use config::AppConfig;
 use pppoe_client::PPPoEClient;
 use pppoe_manager::PPPoEManager;
 use proxy_server::ProxyServer;
@@ -52,22 +53,16 @@ async fn main() -> Result<()> {
 
     info!("Starting ppproxy Service");
 
-    let pppoe_manager = PPPoEManager::new();
+    let config = AppConfig::load()?;
+
+    let pppoe_manager = PPPoEManager::new(config.ip_rotation.clone());
     PPPoEManager::start_stats_task(Arc::clone(&pppoe_manager)).await;
 
-    let username = env::var("PPPOE_USERNAME").context("PPPOE_USERNAME not set")?;
-    let password = env::var("PPPOE_PASSWORD").context("PPPOE_PASSWORD not set")?;
-    let session_count: u16 = env::var("PPPOE_SESSION_COUNT")
-        .unwrap_or_else(|_| "1".to_string())
-        .parse()
-        .unwrap_or(1);
-    let logger_level = env::var("RUST_LOG").unwrap_or_else(|_| "warn".to_string());
-
     let mut clients: Vec<Arc<Mutex<PPPoEClient>>> = Vec::new();
-    for i in 0..session_count {
+    for i in 0..config.session_count {
         let client = PPPoEClient::new(
-            username.clone(),
-            password.clone(),
+            config.username.clone(),
+            config.password.clone(),
             format!("ppp{}", i),
             Arc::clone(&pppoe_manager),
         );
@@ -80,7 +75,7 @@ async fn main() -> Result<()> {
         pppoe_manager_clone.serve().await;
     });
 
-    let proxy = ProxyServer::new(session_count, logger_level);
+    let proxy = ProxyServer::new(config.session_count, config.logger_level.clone());
     ProxyServer::start(Arc::clone(&proxy)).await;
 
     info!("Service started. Press Ctrl+C to stop.");
