@@ -76,6 +76,7 @@ impl PPPoEManager {
         password: String,
         count: u16,
         event_sender: mpsc::Sender<PpmsEvent>,
+        dry_run: bool,
     ) {
         let mut controls = self.client_controls.lock().await;
         for i in 0..count {
@@ -88,6 +89,7 @@ impl PPPoEManager {
                 interface.clone(),
                 event_sender.clone(),
                 cmd_rx,
+                dry_run,
             );
 
             tokio::spawn(client.run());
@@ -253,19 +255,6 @@ impl PPPoEManager {
 
     pub async fn serve(&self) {
         debug!("Starting PPPoE Manager");
-
-        // Start event loop in a separate task?
-        // Or run it here concurrently with rotation loop?
-        // Let's spawn the event loop separately or use select!
-        // But serve() is expected to block (it has a loop).
-
-        // We need to run the event loop.
-        // We need to run the event loop.
-        // We can't easily clone &Self to Arc<Self> unless we are inside an Arc.
-        // But serve takes &self.
-
-        // Ideally, main.rs should spawn the event loop.
-        // Let's add a run_event_loop method that takes Arc<Self>.
 
         self.start_all().await;
         if self.config.rotation_time == "0" {

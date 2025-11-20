@@ -18,6 +18,7 @@ pub struct AppConfig {
     pub logger_level: String,
     pub discord_token: String,
     pub discord_guild_id: Option<u64>,
+    pub dry_run: bool,
 }
 
 impl AppConfig {
@@ -36,6 +37,11 @@ impl AppConfig {
         let discord_guild_id = env::var("DISCORD_GUILD_ID")
             .ok()
             .and_then(|id| id.parse().ok());
+
+        let dry_run = env::var("DRY_RUN")
+            .unwrap_or_else(|_| "false".to_string())
+            .parse()
+            .unwrap_or(false);
 
         let logger_level = env::var("RUST_LOG").unwrap_or_else(|_| "warn".to_string());
 
@@ -72,6 +78,7 @@ impl AppConfig {
             logger_level,
             discord_token,
             discord_guild_id,
+            dry_run,
         })
     }
 }

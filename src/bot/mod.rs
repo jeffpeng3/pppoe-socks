@@ -1,5 +1,6 @@
 use crate::pppoe::manager::PPPoEManager;
 use anyhow::{Error, Result};
+use log::error;
 use poise::serenity_prelude as serenity;
 use std::sync::Arc;
 
@@ -9,8 +10,7 @@ pub struct Data {
 
 pub type Context<'a> = poise::Context<'a, Data, Error>;
 
-/// Show the status of all PPPoE connections
-#[poise::command(slash_command, prefix_command)]
+#[poise::command(slash_command)]
 pub async fn status(ctx: Context<'_>) -> Result<()> {
     let manager = &ctx.data().manager;
     let stats = manager.get_all_stats().await;
@@ -34,8 +34,7 @@ pub async fn status(ctx: Context<'_>) -> Result<()> {
     Ok(())
 }
 
-/// Reconnect a specific PPPoE interface
-#[poise::command(slash_command, prefix_command)]
+#[poise::command(slash_command)]
 pub async fn reconnect(
     ctx: Context<'_>,
     #[description = "Interface name (e.g., ppp0)"] interface: String,
@@ -53,8 +52,7 @@ pub async fn reconnect(
     Ok(())
 }
 
-/// Disconnect a specific PPPoE interface
-#[poise::command(slash_command, prefix_command)]
+#[poise::command(slash_command)]
 pub async fn disconnect(
     ctx: Context<'_>,
     #[description = "Interface name (e.g., ppp0)"] interface: String,
@@ -72,8 +70,7 @@ pub async fn disconnect(
     Ok(())
 }
 
-/// Connect a specific PPPoE interface
-#[poise::command(slash_command, prefix_command)]
+#[poise::command(slash_command)]
 pub async fn connect(
     ctx: Context<'_>,
     #[description = "Interface name (e.g., ppp0)"] interface: String,
@@ -119,11 +116,11 @@ pub async fn start_bot(
             })
         })
         .build();
-
+    
+    error!("Loaded");
     let client = serenity::ClientBuilder::new(token, intents)
         .framework(framework)
         .await;
-
     client?.start().await?;
     Ok(())
 }

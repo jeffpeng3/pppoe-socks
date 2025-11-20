@@ -18,15 +18,16 @@ use anyhow::{Context, Result};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    setup_nft().await?;
+    // Load config first to get dry_run flag
+    let config = AppConfig::load()?;
+
+    setup_nft(config.dry_run).await?;
 
     logger::init();
 
-    let _ = init_route().await.map_err(|x| error!("{x:?}"));
-
-    info!("Starting ppproxy Service");
-
-    let config = AppConfig::load()?;
+    let _ = init_route(config.dry_run)
+        .await
+        .map_err(|x| error!("{x:?}"));
 
     let (event_tx, event_rx) = mpsc::channel(100);
 
@@ -40,6 +41,7 @@ async fn main() -> Result<()> {
             config.password.clone(),
             config.session_count,
             event_tx,
+            config.dry_run,
         )
         .await;
 
@@ -62,7 +64,11 @@ async fn main() -> Result<()> {
         }
     });
 
-    let proxy = ProxyServer::new(config.session_count, config.logger_level.clone());
+    let proxy = ProxyServer::new(
+        config.session_count,
+        config.logger_level.clone(),
+        config.dry_run,
+    );
     ProxyServer::start(Arc::clone(&proxy)).await;
 
     info!("Service started. Press Ctrl+C to stop.");
@@ -87,7 +93,12 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-async fn setup_nft() -> Result<()> {
+async fn setup_nft(dry_run: bool) -> Result<()> {
+    if dry_run {
+        info!("[DRY-RUN] Skipping nftables setup");
+        return Ok(());
+    }
+
     Command::new("nft")
         .arg("-f")
         .arg("/etc/nftables.conf")
