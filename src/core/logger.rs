@@ -19,5 +19,6 @@ pub fn init() {
             )
         })
         .filter_module("serenity", log::LevelFilter::Warn)
+        .filter_module("tracing", log::LevelFilter::Warn) // serenity 內部使用 tracing
         .init();
 }
