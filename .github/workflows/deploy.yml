@@ -13,7 +13,7 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build-and-push:
+  server:
     name: 建置並推送映像
     runs-on: ubuntu-latest
 
@@ -32,22 +32,10 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
 
     - name: 擷取server中繼資料
-      id: server_meta
+      id: meta
       uses: docker/metadata-action@v5
       with:
         images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-        tags: |
-          type=ref,event=branch
-          type=ref,event=pr
-          type=semver,pattern={{version}}
-          type=semver,pattern={{major}}.{{minor}}
-          type=raw,value=latest,enable={{is_default_branch}}
-
-    - name: 擷取client中繼資料
-      id: client_meta
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-client
         tags: |
           type=ref,event=branch
           type=ref,event=pr
@@ -67,10 +55,47 @@ jobs:
       with:
         context: .
         push: true
-        tags: ${{ steps.server_meta.outputs.tags }}
-        labels: ${{ steps.server_meta.outputs.labels }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha,scope=server
         cache-to: type=gha,mode=max,scope=server
+
+  client:
+    name: 建置並推送映像
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: 檢出程式碼
+      uses: actions/checkout@v5
+
+    - name: 設定 Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: 登入 GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: 擷取client中繼資料
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-client
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - uses: robinraju/release-downloader@v1.12
+      with:
+        repository: "go-gost/gost"
+        latest: true
+        fileName: "gost_*_linux_amd64v3.tar.gz"
+        extract: true
 
     - name: build and push client
       uses: docker/build-push-action@v6
@@ -78,7 +103,7 @@ jobs:
         context: .
         file: ./client/Dockerfile
         push: true
-        tags: ${{ steps.client_meta.outputs.tags }}
-        labels: ${{ steps.client_meta.outputs.labels }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha,scope=client
         cache-to: type=gha,mode=max,scope=client
