@@ -47,7 +47,7 @@ services:
           addr: $SERVER_IP:$TARGET_PORT
 log:
   output: stdout
-  level: debug
+  level: trace
   format: text
 
 EOF
